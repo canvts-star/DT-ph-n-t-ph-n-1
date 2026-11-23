@@ -1,0 +1,1350 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chinh Phục Mật Mã Di Truyền - Sinh Học 12</title>
+    <!-- Tải Tailwind CSS và Google Fonts (Nunito & Be Vietnam Pro) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <!-- Thư viện Canvas Confetti cho hiệu ứng pháo giấy -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        /* Cấu hình Font chữ chính và Font hiển thị trình tự Nucleotide */
+        body {
+            font-family: 'Be Vietnam Pro', sans-serif;
+            background: linear-gradient(135deg, #090d16 0%, #0f1c38 45%, #0a2638 100%);
+            color: #f8fafc;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .font-mono-seq {
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: 0.04em;
+        }
+
+        /* Nền lưới phòng thí nghiệm công nghệ sinh học */
+        .bio-grid-bg {
+            background-image: 
+                radial-gradient(circle at 15% 20%, rgba(16, 185, 129, 0.14) 0%, transparent 40%),
+                radial-gradient(circle at 85% 75%, rgba(56, 189, 248, 0.16) 0%, transparent 45%),
+                linear-gradient(rgba(56, 189, 248, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(56, 189, 248, 0.04) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 36px 36px, 36px 36px;
+        }
+
+        /* Hiệu ứng kính mờ hiện đại (Glassmorphism) */
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.72);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(56, 189, 248, 0.22);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        }
+
+        /* Hiệu ứng chuỗi xoắn DNA trôi nổi */
+        @keyframes floatDna {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-10px) rotate(3deg); }
+        }
+        .animate-dna {
+            animation: floatDna 5s ease-in-out infinite;
+        }
+
+        /* Hiệu ứng rung khi trả lời sai */
+        @keyframes shakeWrong {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-8px); }
+            40% { transform: translateX(8px); }
+            60% { transform: translateX(-6px); }
+            80% { transform: translateX(6px); }
+        }
+        .shake-anim {
+            animation: shakeWrong 0.45s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        /* Hiệu ứng nảy nhẹ khi trả lời đúng */
+        @keyframes popCorrect {
+            0% { transform: scale(1); }
+            45% { transform: scale(1.025); }
+            100% { transform: scale(1); }
+        }
+        .pop-anim {
+            animation: popCorrect 0.4s ease-out;
+        }
+
+        /* Nút lựa chọn đáp án */
+        .option-btn {
+            transition: all 0.22s cubic-bezier(0.25, 0.8, 0.25, 1);
+            border: 1.5px solid rgba(148, 163, 184, 0.25);
+            background: rgba(30, 41, 59, 0.65);
+        }
+        .option-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            border-color: #38bdf8;
+            background: rgba(14, 116, 144, 0.35);
+            box-shadow: 0 8px 20px rgba(56, 189, 248, 0.2);
+        }
+        .option-btn:active:not(:disabled) {
+            transform: scale(0.99);
+        }
+        .option-correct {
+            background: linear-gradient(135deg, rgba(5, 150, 105, 0.85), rgba(16, 185, 129, 0.75)) !important;
+            border-color: #34d399 !important;
+            color: #ffffff !important;
+            box-shadow: 0 0 25px rgba(16, 185, 129, 0.45) !important;
+        }
+        .option-wrong {
+            background: linear-gradient(135deg, rgba(225, 29, 72, 0.85), rgba(244, 63, 94, 0.75)) !important;
+            border-color: #fb7185 !important;
+            color: #ffffff !important;
+            box-shadow: 0 0 20px rgba(244, 63, 94, 0.4) !important;
+        }
+        .option-dimmed {
+            opacity: 0.55;
+        }
+
+        /* Tùy chỉnh thanh cuộn */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(56, 189, 248, 0.4);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(56, 189, 248, 0.7);
+        }
+    </style>
+</head>
+<body class="bio-grid-bg flex flex-col justify-between selection:bg-cyan-400 selection:text-slate-900">
+
+    <!-- ==================== THANH ĐIỀU HƯỚNG TRÊN CÙNG ==================== -->
+    <header class="sticky top-0 z-40 glass-panel border-b border-cyan-500/20 px-4 py-3">
+        <div class="max-w-5xl mx-auto flex flex-wrap items-center justify-between gap-3">
+            <!-- Logo & Tên trò chơi -->
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center shadow-lg shadow-cyan-500/30 animate-dna">
+                    <!-- Icon chuỗi xoắn DNA SVG -->
+                    <svg class="w-6 h-6 text-slate-950" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M2 15c6.667-6 13.333 0 20-6"/>
+                        <path d="M9 22c1.798-1.998 2.518-3.995 2.807-5.993"/>
+                        <path d="M15 2c-1.798 1.998-2.518 3.995-2.807 5.993"/>
+                        <path d="m17 6-2.5-2.5"/>
+                        <path d="m14 8-1-1"/>
+                        <path d="m7 18 2.5 2.5"/>
+                        <path d="m3.5 14.5.5.5"/>
+                        <path d="m20 9 .5.5"/>
+                        <path d="m6.5 12.5 1 1"/>
+                        <path d="m16.5 10.5 1 1"/>
+                        <path d="m10 16 1.5 1.5"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-sm sm:text-base md:text-lg font-extrabold tracking-tight bg-gradient-to-r from-emerald-300 via-cyan-300 to-sky-400 bg-clip-text text-transparent">
+                        CHINH PHỤC MẬT MÃ DI TRUYỀN
+                    </h1>
+                    <p class="text-[11px] sm:text-xs text-cyan-200/80 font-medium">
+                        Sinh học 12 • Gene & Cơ chế di truyền phân tử
+                    </p>
+                </div>
+            </div>
+
+            <!-- Khu vực thông tin thí sinh & Nút điều khiển âm thanh -->
+            <div class="flex items-center gap-2 sm:gap-3">
+                <!-- Hiển thị tên thí sinh & số lượt khi đang chơi -->
+                <div id="header-player-badge" class="hidden items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/90 border border-cyan-400/30 text-xs sm:text-sm">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span id="header-player-info" class="font-semibold text-cyan-100 truncate max-w-[160px] sm:max-w-[260px]"></span>
+                </div>
+
+                <!-- Nút Bật/Tắt Âm thanh & Giọng nói -->
+                <button id="toggle-audio-btn" type="button" onclick="toggleAudio()" title="Bật/Tắt giọng đọc & hiệu ứng âm thanh"
+                    class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-400/40 text-cyan-200 text-xs sm:text-sm font-semibold transition cursor-pointer">
+                    <span id="audio-icon">🔊</span>
+                    <span id="audio-label" class="hidden sm:inline">Giọng đọc: Bật</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ==================== NỘI DUNG CHÍNH (3 MÀN HÌNH) ==================== -->
+    <main class="flex-grow flex items-center justify-center px-3 sm:px-6 py-6">
+        <div class="w-full max-w-4xl">
+
+            <!-- ==================== MÀN HÌNH 1: ĐĂNG NHẬP & GIỚI THIỆU ==================== -->
+            <section id="screen-start" class="glass-panel rounded-3xl p-6 sm:p-10 transition-all duration-300">
+                <div class="text-center max-w-2xl mx-auto mb-8">
+                    <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-400/30 text-emerald-300 text-xs sm:text-sm font-semibold mb-4">
+                        <span>🧬</span> Chương trình GDPT 2018 • SGK Kết nối tri thức
+                    </div>
+                    <h2 class="text-2xl sm:text-4xl font-extrabold text-white leading-tight mb-3">
+                        CHINH PHỤC MẬT MÃ DI TRUYỀN
+                        <span class="block text-lg sm:text-2xl font-bold text-cyan-300 mt-1">GENE & CƠ CHẾ PHÂN TỬ</span>
+                    </h2>
+                    <p class="text-slate-300 text-sm sm:text-base leading-relaxed">
+                        Khám phá 20 thử thách từ lý thuyết trọng tâm đến thực hành giải mã trình tự Nucleotide và chuỗi Polypeptide. Sẵn sàng kích hoạt enzyme tư duy của bạn!
+                    </p>
+                </div>
+
+                <!-- Form nhập thông tin thí sinh -->
+                <div class="max-w-lg mx-auto bg-slate-900/75 border border-slate-700/80 rounded-2xl p-5 sm:p-7 shadow-xl">
+                    <form id="start-form" onsubmit="handleStartGame(event)" class="space-y-4">
+                        <div>
+                            <label for="student-name" class="block text-sm font-semibold text-cyan-200 mb-1.5">
+                                Họ và tên thí sinh <span class="text-rose-400">*</span>
+                            </label>
+                            <input type="text" id="student-name" required maxlength="50"
+                                placeholder="Ví dụ: Nguyễn Văn An"
+                                class="w-full px-4 py-3 rounded-xl bg-slate-800/90 border border-slate-600 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/30 text-white placeholder-slate-400 outline-none transition text-base">
+                        </div>
+
+                        <div>
+                            <label for="student-class" class="block text-sm font-semibold text-cyan-200 mb-1.5">
+                                Lớp (Tùy chọn)
+                            </label>
+                            <input type="text" id="student-class" maxlength="20"
+                                placeholder="Ví dụ: 12A1"
+                                class="w-full px-4 py-3 rounded-xl bg-slate-800/90 border border-slate-600 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/30 text-white placeholder-slate-400 outline-none transition text-base">
+                        </div>
+
+                        <!-- Tùy chọn thứ tự câu hỏi -->
+                        <div class="flex items-center justify-between pt-1 pb-2">
+                            <label class="inline-flex items-center gap-2.5 cursor-pointer select-none">
+                                <input type="checkbox" id="shuffle-questions" class="w-4 h-4 rounded accent-cyan-400 cursor-pointer">
+                                <span class="text-xs sm:text-sm text-slate-300">Xáo trộn ngẫu nhiên thứ tự 20 câu hỏi</span>
+                            </label>
+                        </div>
+
+                        <!-- Cảnh báo lỗi nhập liệu thay cho alert() -->
+                        <div id="form-error-msg" class="hidden p-3 rounded-xl bg-rose-500/20 border border-rose-400/40 text-rose-200 text-xs sm:text-sm"></div>
+
+                        <button type="submit"
+                            class="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-extrabold text-base sm:text-lg shadow-lg shadow-cyan-500/30 transform hover:-translate-y-0.5 transition cursor-pointer flex items-center justify-center gap-2">
+                            <span>🚀</span> BẮT ĐẦU GIẢI MÃ NGAY
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Khu vực thống kê số lượt làm bài của các thí sinh trên thiết bị -->
+                <div class="max-w-lg mx-auto mt-6 bg-slate-900/50 border border-cyan-500/20 rounded-2xl p-4 sm:p-5">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-xs sm:text-sm font-bold uppercase tracking-wider text-cyan-300 flex items-center gap-1.5">
+                            <span>📊</span> Nhật ký số lượt tham gia trên thiết bị
+                        </h3>
+                        <button type="button" onclick="confirmResetStats()"
+                            class="text-xs text-slate-400 hover:text-rose-300 underline transition cursor-pointer">
+                            Đặt lại bộ đếm
+                        </button>
+                    </div>
+
+                    <!-- Hộp xác nhận xóa bộ đếm (thay thế confirm()) -->
+                    <div id="reset-confirm-box" class="hidden mb-3 p-3 rounded-xl bg-rose-950/80 border border-rose-500/40 text-xs text-rose-100 flex flex-wrap items-center justify-between gap-2">
+                        <span>Bạn chắc chắn muốn xóa lịch sử số lượt làm bài?</span>
+                        <div class="flex gap-2">
+                            <button type="button" onclick="executeResetStats()" class="px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-semibold cursor-pointer">Đồng ý</button>
+                            <button type="button" onclick="cancelResetStats()" class="px-3 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 cursor-pointer">Hủy</button>
+                        </div>
+                    </div>
+
+                    <div id="attempt-history-list" class="space-y-2 max-h-40 overflow-y-auto pr-1 text-xs sm:text-sm">
+                        <!-- Dữ liệu được render từ localStorage -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== MÀN HÌNH 2: KHU VỰC TRẢ LỜI CÂU HỎI ==================== -->
+            <section id="screen-quiz" class="hidden glass-panel rounded-3xl p-5 sm:p-8 transition-all duration-300">
+                <!-- Thanh trạng thái tiến độ & đồng hồ -->
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                    <div class="flex items-center gap-2.5">
+                        <span id="question-counter-badge" class="px-3.5 py-1.5 rounded-xl bg-cyan-500/20 border border-cyan-400/40 text-cyan-200 font-bold text-sm sm:text-base">
+                            Câu 1 / 20
+                        </span>
+                        <span id="question-topic-badge" class="px-3 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-400/30 text-emerald-300 text-xs sm:text-sm font-medium">
+                            Cấu trúc Gene
+                        </span>
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                        <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/90 border border-slate-700 text-slate-200 text-xs sm:text-sm font-mono-seq">
+                            <span>⏱️</span>
+                            <span id="timer-display">00:00</span>
+                        </div>
+                        <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-950/70 border border-emerald-500/30 text-emerald-300 text-xs sm:text-sm font-bold">
+                            <span>✅</span>
+                            <span id="correct-count-display">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Thanh tiến trình trực quan -->
+                <div class="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden mb-6 border border-slate-700/70">
+                    <div id="progress-bar" class="h-full bg-gradient-to-r from-emerald-400 via-cyan-400 to-sky-400 transition-all duration-500 rounded-full" style="width: 5%"></div>
+                </div>
+
+                <!-- Nội dung câu hỏi -->
+                <div id="question-card" class="bg-slate-900/75 border border-slate-700/80 rounded-2xl p-5 sm:p-6 mb-5 shadow-inner">
+                    <div id="question-text" class="text-base sm:text-lg md:text-xl font-semibold text-white leading-relaxed">
+                        <!-- Nội dung câu hỏi -->
+                    </div>
+                    <!-- Bảng mã di truyền bổ trợ (nếu câu hỏi có yêu cầu tra bảng mã) -->
+                    <div id="codon-table-box" class="hidden mt-4 p-3.5 rounded-xl bg-cyan-950/60 border border-cyan-400/30 text-xs sm:text-sm text-cyan-100">
+                        <!-- Bảng mã di truyền mini -->
+                    </div>
+                </div>
+
+                <!-- 4 Phương án lựa chọn A, B, C, D -->
+                <div id="options-container" class="grid grid-cols-1 md:grid-cols-2 gap-3.5 mb-5">
+                    <!-- Các nút đáp án A, B, C, D sẽ được render bằng JS -->
+                </div>
+
+                <!-- Hộp phản hồi cổ vũ / động viên & Hướng dẫn giải chi tiết -->
+                <div id="feedback-box" class="hidden rounded-2xl p-5 border transition-all duration-300 mb-5">
+                    <div class="flex items-start gap-3">
+                        <div id="feedback-emoji" class="text-3xl sm:text-4xl select-none">🎉</div>
+                        <div class="flex-1">
+                            <h4 id="feedback-title" class="text-base sm:text-lg font-extrabold mb-1"></h4>
+                            <p id="feedback-voice-text" class="text-sm sm:text-base font-medium italic mb-3"></p>
+                            <div class="p-3.5 rounded-xl bg-slate-950/65 border border-white/10 text-slate-200 text-xs sm:text-sm leading-relaxed">
+                                <span class="font-bold text-cyan-300 uppercase tracking-wide block mb-1">💡 Hướng dẫn giải chi tiết:</span>
+                                <span id="feedback-explanation"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Nút điều hướng câu tiếp theo -->
+                <div class="flex justify-end">
+                    <button id="next-btn" type="button" onclick="nextQuestion()"
+                        class="hidden py-3 px-7 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-slate-950 font-extrabold text-sm sm:text-base shadow-lg shadow-cyan-500/25 transform hover:-translate-y-0.5 transition cursor-pointer items-center gap-2">
+                        <span id="next-btn-text">Câu tiếp theo</span>
+                        <span>➔</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- ==================== MÀN HÌNH 3: HOÀN THÀNH & ÔN TẬP ==================== -->
+            <section id="screen-result" class="hidden glass-panel rounded-3xl p-6 sm:p-10 transition-all duration-300">
+                <div class="text-center max-w-2xl mx-auto">
+                    <div class="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-amber-300 via-emerald-400 to-cyan-500 flex items-center justify-center text-4xl shadow-xl shadow-emerald-500/30 animate-bounce">
+                        🏆
+                    </div>
+                    <h2 class="text-2xl sm:text-3xl font-extrabold text-white mb-2">
+                        CHÚC MỪNG HOÀN THÀNH THỬ THÁCH!
+                    </h2>
+                    <p id="result-student-banner" class="text-base sm:text-lg font-bold text-cyan-300 mb-4">
+                        <!-- Hiển thị tên thí sinh & số lượt làm bài -->
+                    </p>
+
+                    <!-- Thẻ tóm tắt quá trình trải nghiệm (không lưu bảng xếp hạng điểm) -->
+                    <div class="grid grid-cols-3 gap-3 sm:gap-4 max-w-lg mx-auto my-6">
+                        <div class="p-3.5 rounded-2xl bg-slate-900/80 border border-cyan-500/30">
+                            <div class="text-xs text-slate-400 mb-1">Số câu đúng</div>
+                            <div id="result-correct-ratio" class="text-xl sm:text-2xl font-extrabold text-emerald-400">20/20</div>
+                        </div>
+                        <div class="p-3.5 rounded-2xl bg-slate-900/80 border border-cyan-500/30">
+                            <div class="text-xs text-slate-400 mb-1">Thời gian</div>
+                            <div id="result-time-taken" class="text-xl sm:text-2xl font-extrabold text-cyan-300 font-mono-seq">03:45</div>
+                        </div>
+                        <div class="p-3.5 rounded-2xl bg-slate-900/80 border border-cyan-500/30">
+                            <div class="text-xs text-slate-400 mb-1">Lượt tham gia</div>
+                            <div id="result-attempt-count" class="text-xl sm:text-2xl font-extrabold text-amber-300">Lần 1</div>
+                        </div>
+                    </div>
+
+                    <p id="result-encouragement" class="text-slate-300 text-sm sm:text-base leading-relaxed mb-7">
+                        Bạn đã hoàn thành trọn vẹn 20 câu hỏi về Gene và các cơ chế di truyền cấp độ phân tử. Hãy tiếp tục rèn luyện để làm chủ mọi dạng bài Sinh học 12 nhé!
+                    </p>
+
+                    <!-- Các nút hành động -->
+                    <div class="flex flex-wrap items-center justify-center gap-3 sm:gap-4 mb-8">
+                        <button type="button" onclick="replaySameStudent()"
+                            class="py-3 px-6 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-extrabold text-sm sm:text-base shadow-lg shadow-cyan-500/25 transition cursor-pointer flex items-center gap-2">
+                            <span>🔄</span> Chơi lại lượt mới
+                        </button>
+                        <button type="button" onclick="switchStudent()"
+                            class="py-3 px-6 rounded-xl bg-slate-800 hover:bg-slate-700 border border-cyan-400/40 text-cyan-200 font-bold text-sm sm:text-base transition cursor-pointer flex items-center gap-2">
+                            <span>👤</span> Đổi thí sinh khác
+                        </button>
+                        <button type="button" onclick="toggleReviewSection()"
+                            class="py-3 px-6 rounded-xl bg-indigo-600/80 hover:bg-indigo-500 text-white font-bold text-sm sm:text-base transition cursor-pointer flex items-center gap-2">
+                            <span>📖</span> <span id="review-toggle-text">Xem lại 20 câu & lời giải</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Khu vực xem lại chi tiết 20 câu hỏi -->
+                <div id="review-container" class="hidden border-t border-slate-700/80 pt-6 mt-4 space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                    <h3 class="text-lg font-bold text-cyan-300 mb-3">📚 Tổng hợp đáp án & Hướng dẫn giải 20 câu hỏi</h3>
+                    <div id="review-list" class="space-y-4">
+                        <!-- Danh sách ôn tập được render bằng JS -->
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- ==================== CHÂN TRANG (FOOTER) ==================== -->
+    <footer class="glass-panel border-t border-cyan-500/20 py-3.5 px-4 text-center">
+        <div class="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs sm:text-sm">
+            <div class="font-bold text-cyan-300 tracking-wide">
+                ✍️ Biên soạn: Thầy Trương Trung Can - Trường THPT Võ Thị Sáu
+            </div>
+            <div class="text-slate-400">
+                Sinh học 12 • Cơ chế di truyền ở cấp độ phân tử (GDPT 2018)
+            </div>
+        </div>
+    </footer>
+
+    <!-- ==================== MÃ NGUỒN JAVASCRIPT ĐIỀU KHIỂN ==================== -->
+    <script>
+        /**
+         * ============================================================================
+         * 1. NGÂN HÀNG 20 CÂU HỎI SINH HỌC 12 (GDPT 2018 - SGK KẾT NỐI TRI THỨC)
+         * Phân bổ đáp án chuẩn xác: 5 câu A (0), 5 câu B (1), 5 câu C (2), 5 câu D (3)
+         * ============================================================================
+         */
+        const QUESTIONS_BANK = [
+            // --- CHỦ ĐỀ 1: KHÁI NIỆM, CẤU TRÚC VÀ PHÂN LOẠI GENE ---
+            {
+                id: 1,
+                topic: "Khái niệm & Cấu trúc Gene",
+                question: "Theo quan niệm hiện đại trong Sinh học 12, gene là gì?",
+                options: [
+                    "Một đoạn của phân tử DNA mang thông tin quy định sản phẩm là chuỗi polypeptide hoặc phân tử RNA.",
+                    "Một đoạn của phân tử protein tham gia điều hòa hoạt động trao đổi chất của tế bào.",
+                    "Toàn bộ trình tự các nucleotide nằm trên một nhiễm sắc thể ở kì giữa nguyên phân.",
+                    "Một phân tử rRNA trực tiếp làm khuôn tổng hợp nên chuỗi polypeptide tại ribosome."
+                ],
+                correctIndex: 0, // A (1/5)
+                explanation: "Theo SGK Sinh học 12 (Kết nối tri thức), gene là một đoạn của phân tử DNA mang thông tin quy định sản phẩm xác định là chuỗi polypeptide hoặc phân tử RNA (như tRNA, rRNA)."
+            },
+            {
+                id: 2,
+                topic: "Cấu trúc chung của Gene",
+                question: "Một gene cấu trúc điển hình gồm 3 vùng theo trình tự từ đầu 3' đến đầu 5' trên mạch khuôn lần lượt là:",
+                options: [
+                    "Vùng kết thúc → Vùng mã hóa → Vùng điều hòa.",
+                    "Vùng điều hòa → Vùng mã hóa → Vùng kết thúc.",
+                    "Vùng mã hóa → Vùng điều hòa → Vùng kết thúc.",
+                    "Vùng điều hòa → Vùng kết thúc → Vùng mã hóa."
+                ],
+                correctIndex: 1, // B (1/5)
+                explanation: "Tính theo chiều mạch khuôn (3' → 5'), gene cấu trúc gồm 3 vùng theo đúng thứ tự: Vùng điều hòa (ở đầu 3' của mạch khuôn) → Vùng mã hóa (ở giữa) → Vùng kết thúc (ở đầu 5' của mạch khuôn)."
+            },
+            {
+                id: 3,
+                topic: "Chức năng các vùng của Gene",
+                question: "Vùng nào của gene cấu trúc mang trình tự nucleotide đặc biệt giúp enzyme RNA polymerase nhận biết, liên kết để khởi động quá trình phiên mã?",
+                options: [
+                    "Vùng kết thúc nằm ở đầu 5' của mạch khuôn.",
+                    "Các đoạn intron nằm xen kẽ trong vùng mã hóa.",
+                    "Vùng điều hòa nằm ở đầu 3' của mạch khuôn.",
+                    "Bộ ba mở đầu AUG nằm trên phân tử mRNA."
+                ],
+                correctIndex: 2, // C (1/5)
+                explanation: "Vùng điều hòa nằm ở đầu 3' của mạch khuôn, có trình tự promoter giúp RNA polymerase nhận biết và liên kết để khởi động phiên mã, đồng thời chứa trình tự điều hòa phiên mã."
+            },
+            {
+                id: 4,
+                topic: "Phân loại Gene",
+                question: "Điểm khác biệt cơ bản về cấu trúc vùng mã hóa giữa gene phân mảnh (ở sinh vật nhân thực) và gene không phân mảnh (ở sinh vật nhân sơ) là:",
+                options: [
+                    "Gene phân mảnh không có vùng điều hòa và vùng kết thúc.",
+                    "Gene phân mảnh chỉ chứa các đoạn exon mà không có intron.",
+                    "Gene không phân mảnh chứa nhiều đoạn intron không mã hóa amino acid.",
+                    "Gene phân mảnh có các đoạn exon xen kẽ với các đoạn intron không mã hóa amino acid."
+                ],
+                correctIndex: 3, // D (1/5)
+                explanation: "Gene ở sinh vật nhân sơ có vùng mã hóa liên tục (gene không phân mảnh). Phần lớn gene ở sinh vật nhân thực là gene phân mảnh: vùng mã hóa gồm các đoạn mã hóa amino acid (exon) xen kẽ các đoạn không mã hóa amino acid (intron)."
+            },
+
+            // --- CHỦ ĐỀ 2: QUÁ TRÌNH TÁI BẢN DNA ---
+            {
+                id: 5,
+                topic: "Nguyên tắc tái bản DNA",
+                question: "Quá trình tái bản DNA (nhân đôi DNA) diễn ra dựa trên hai nguyên tắc cơ bản nào sau đây?",
+                options: [
+                    "Nguyên tắc bổ sung và nguyên tắc bán bảo toàn.",
+                    "Nguyên tắc khuôn mẫu và nguyên tắc bảo toàn hoàn toàn.",
+                    "Nguyên tắc bổ sung và nguyên tắc gián đoạn trên cả hai mạch.",
+                    "Nguyên tắc bán bảo toàn và nguyên tắc dịch mã trực tiếp."
+                ],
+                correctIndex: 0, // A (2/5)
+                explanation: "Tái bản DNA diễn ra theo nguyên tắc bổ sung (A liên kết T, G liên kết C) và nguyên tắc bán bảo toàn (mỗi phân tử DNA con giữ lại một mạch cũ từ DNA mẹ và tổng hợp một mạch mới)."
+            },
+            {
+                id: 6,
+                topic: "Enzyme trong tái bản DNA",
+                question: "Trong quá trình tái bản DNA ở sinh vật nhân sơ, enzyme DNA polymerase có đặc điểm hoạt động như thế nào?",
+                options: [
+                    "Tháo xoắn phân tử DNA và bẻ gãy các liên kết hydrogen giữa hai mạch.",
+                    "Tổng hợp mạch polynucleotide mới theo chiều 5' → 3' dựa trên mạch khuôn 3' → 5'.",
+                    "Tổng hợp đoạn mồi RNA ngắn mà không cần có sẵn đầu 3'-OH tự do.",
+                    "Nối các đoạn Okazaki lại với nhau thành mạch DNA hoàn chỉnh."
+                ],
+                correctIndex: 1, // B (2/5)
+                explanation: "Enzyme DNA polymerase chỉ có thể bổ sung nucleotide vào đầu 3'-OH tự do nên luôn tổng hợp mạch mới theo chiều 5' → 3' (trượt trên mạch khuôn theo chiều 3' → 5')."
+            },
+            {
+                id: 7,
+                topic: "Cơ chế tái bản tại chạc chữ Y",
+                question: "Tại một chạc chữ Y trong quá trình tái bản DNA, vì sao một mạch được tổng hợp liên tục còn mạch kia được tổng hợp gián đoạn thành các đoạn Okazaki?",
+                options: [
+                    "Vì enzyme DNA ligase chỉ hoạt động trên một mạch khuôn nhất định.",
+                    "Vì hai mạch của phân tử DNA mẹ có thành phần nucleotide khác nhau.",
+                    "Vì hai mạch của DNA mẹ chạy ngược chiều nhau (3'→5' và 5'→3') mà DNA polymerase chỉ tổng hợp theo chiều 5'→3'.",
+                    "Vì trên mạch khuôn 5'→3' không có các nucleotide loại Adenine và Thymine."
+                ],
+                correctIndex: 2, // C (2/5)
+                explanation: "Do cấu trúc song song ngược chiều của DNA kép và đặc tính của DNA polymerase chỉ tổng hợp mạch mới theo chiều 5' → 3', nên trên mạch khuôn 3' → 5' mạch mới được tổng hợp liên tục, còn trên mạch khuôn 5' → 3' mạch mới tổng hợp gián đoạn tạo các đoạn Okazaki."
+            },
+            {
+                id: 8,
+                topic: "Vai trò của enzyme Ligase",
+                question: "Sau khi các đoạn mồi RNA được loại bỏ và thay thế bằng DNA, enzyme nào xúc tác hình thành liên kết phosphodiester để nối các đoạn Okazaki thành mạch hoàn chỉnh?",
+                options: [
+                    "RNA polymerase.",
+                    "Helicase.",
+                    "DNA gyrase.",
+                    "DNA ligase."
+                ],
+                correctIndex: 3, // D (2/5)
+                explanation: "Enzyme DNA ligase xúc tác nối các đoạn Okazaki thông qua việc hình thành liên kết phosphodiester giữa đầu 3'-OH và đầu 5'-P của các đoạn DNA kế cận."
+            },
+
+            // --- CHỦ ĐỀ 3: CẤU TRÚC & CHỨC NĂNG CÁC LOẠI RNA + PHIÊN MÃ ---
+            {
+                id: 9,
+                topic: "Cấu trúc & Chức năng RNA",
+                question: "Phát biểu nào sau đây đúng khi phân biệt ba loại RNA phổ biến trong tế bào (mRNA, tRNA, rRNA)?",
+                options: [
+                    "tRNA có cấu trúc mạch đơn nhưng tự cuộn xoắn tạo các thùy tròn, mang bộ ba đối mã (anticodon) và vận chuyển amino acid.",
+                    "mRNA có cấu trúc mạch kép vòng, chứa nhiều liên kết hydrogen nhất trong ba loại RNA.",
+                    "rRNA làm khuôn trực tiếp cho quá trình dịch mã tổng hợp chuỗi polypeptide.",
+                    "Cả ba loại RNA đều có cấu tạo gồm 4 loại đơn phân là A, T, G, C."
+                ],
+                correctIndex: 0, // A (3/5)
+                explanation: "tRNA (RNA vận chuyển) có cấu trúc một mạch cuộn xoắn tạo cấu hình không gian đặc trưng (hình lá chẻ ba), một đầu mang amino acid đặc hiệu và một thùy mang bộ ba đối mã (anticodon). Đơn phân của RNA là A, U, G, C."
+            },
+            {
+                id: 10,
+                topic: "Quá trình Phiên mã",
+                question: "Trong quá trình phiên mã ở tế bào nhân thực, phân tử tiền-mRNA (pre-mRNA) được biến đổi như thế nào trước khi ra tế bào chất để dịch mã?",
+                options: [
+                    "Cắt bỏ toàn bộ các đoạn exon và nối các đoạn intron lại với nhau.",
+                    "Cắt bỏ các đoạn intron, nối các đoạn exon, đồng thời gắn mũ 7-methylguanosine ở đầu 5' và đuôi poly-A ở đầu 3'.",
+                    "Nhân đôi thành phân tử RNA mạch kép để tăng độ bền vững trong tế bào chất.",
+                    "Thay thế toàn bộ nucleotide loại Uracil (U) thành Thymine (T)."
+                ],
+                correctIndex: 1, // B (3/5)
+                explanation: "Ở sinh vật nhân thực, tiền-mRNA sau phiên mã sẽ trải qua quá trình chế biến: cắt bỏ các đoạn intron không mã hóa, nối các đoạn exon lại tạo mRNA trưởng thành, gắn mũ đầu 5' và đuôi poly-A đầu 3'."
+            },
+            {
+                id: 11,
+                topic: "Phiên mã ngược",
+                question: "Quá trình phiên mã ngược (reverse transcription) là quá trình tổng hợp phân tử nào từ khuôn mẫu RNA?",
+                options: [
+                    "Tổng hợp phân tử tRNA từ khuôn mẫu rRNA.",
+                    "Tổng hợp chuỗi polypeptide trực tiếp từ DNA.",
+                    "Tổng hợp mạch DNA bổ sung (cDNA) từ khuôn mẫu RNA nhờ enzyme phiên mã ngược.",
+                    "Tổng hợp phân tử mRNA từ khuôn mẫu chuỗi polypeptide."
+                ],
+                correctIndex: 2, // C (3/5)
+                explanation: "Phiên mã ngược là quá trình tổng hợp DNA dựa trên mạch khuôn là RNA nhờ enzyme phiên mã ngược (reverse transcriptase), gặp ở một số virus có vật chất di truyền là RNA (như HIV) hoặc trong nhân tế bào nhân thực (telomerase)."
+            },
+
+            // --- CHỦ ĐỀ 4: MÃ DI TRUYỀN & QUÁ TRÌNH DỊCH MÃ ---
+            {
+                id: 12,
+                topic: "Đặc điểm của Mã di truyền",
+                question: "Việc nhiều bộ ba khác nhau cùng mã hóa cho một loại amino acid (trừ AUG và UGG) thể hiện đặc điểm nào của mã di truyền?",
+                options: [
+                    "Tính đặc hiệu.",
+                    "Tính phổ biến.",
+                    "Tính liên tục.",
+                    "Tính thoái hóa."
+                ],
+                correctIndex: 3, // D (3/5)
+                explanation: "Tính thoái hóa của mã di truyền là hiện tượng nhiều bộ ba (codon) khác nhau cùng mã hóa cho một loại amino acid (ví dụ: UUU và UUC cùng mã hóa Phenylalanine). Tính đặc hiệu là một bộ ba chỉ mã hóa cho một loại amino acid."
+            },
+            {
+                id: 13,
+                topic: "Bộ ba mở đầu & Bộ ba kết thúc",
+                question: "Trên phân tử mRNA, bộ ba mở đầu dịch mã và 3 bộ ba kết thúc dịch mã theo chiều 5' → 3' lần lượt là:",
+                options: [
+                    "Mở đầu: 5'-AUG-3'; Kết thúc: 5'-UAA-3', 5'-UAG-3', 5'-UGA-3'.",
+                    "Mở đầu: 5'-UAA-3'; Kết thúc: 5'-AUG-3', 5'-UGG-3', 5'-UGA-3'.",
+                    "Mở đầu: 5'-ATG-3'; Kết thúc: 5'-TAA-3', 5'-TAG-3', 5'-TGA-3'.",
+                    "Mở đầu: 5'-AUG-3'; Kết thúc: 5'-UUU-3', 5'-UUC-3', 5'-UGG-3'."
+                ],
+                correctIndex: 0, // A (4/5)
+                explanation: "Trên mRNA (chiều 5' → 3'), bộ ba mở đầu là 5'-AUG-3' (mã hóa Methionine ở nhân thực hoặc formyl-Methionine ở nhân sơ). Ba bộ ba kết thúc không mã hóa amino acid là 5'-UAA-3', 5'-UAG-3' và 5'-UGA-3'."
+            },
+            {
+                id: 14,
+                topic: "Quá trình Dịch mã & Polyribosome",
+                question: "Hiện tượng nhiều ribosome cùng trượt trên một phân tử mRNA (polyribosome / polysome) trong quá trình dịch mã có ý nghĩa sinh học gì?",
+                options: [
+                    "Tạo ra nhiều loại chuỗi polypeptide có trình tự amino acid khác nhau từ một mRNA.",
+                    "Tăng hiệu suất tổng hợp protein cùng loại trong một khoảng thời gian ngắn.",
+                    "Giúp sửa chữa các đột biến gene xảy ra trên mạch khuôn DNA.",
+                    "Kéo dài tuổi thọ của phân tử mRNA vĩnh viễn trong tế bào."
+                ],
+                correctIndex: 1, // B (4/5)
+                explanation: "Polyribosome giúp tế bào tổng hợp đồng thời nhiều chuỗi polypeptide cùng loại từ một phân tử mRNA duy nhất, qua đó tăng nhanh hiệu suất tổng hợp protein đáp ứng nhu cầu của tế bào."
+            },
+
+            // --- CHỦ ĐỀ 5: BÀI TẬP TÌM TRÌNH TỰ NUCLEOTIDE ---
+            {
+                id: 15,
+                topic: "Bài tập trình tự DNA",
+                question: "Một đoạn mạch gốc của gene có trình tự nucleotide là: <span class='font-mono-seq text-cyan-300 font-bold'>3'-TAC GGA CCT ATT-5'</span>. Trình tự nucleotide trên mạch bổ sung của đoạn gene này là:",
+                options: [
+                    "3'-ATG CCT GGA TAA-5'",
+                    "5'-AUG CCU GGA UAA-3'",
+                    "5'-ATG CCT GGA TAA-3'",
+                    "5'-TAC GGA CCT ATT-3'"
+                ],
+                correctIndex: 2, // C (4/5)
+                explanation: "Hai mạch của DNA liên kết bổ sung (A-T, G-C) và ngược chiều nhau. Mạch gốc: 3'-TAC GGA CCT ATT-5' → Mạch bổ sung: 5'-ATG CCT GGA TAA-3'."
+            },
+            {
+                id: 16,
+                topic: "Bài tập Phiên mã (DNA → mRNA)",
+                question: "Một đoạn mạch khuôn của gene có trình tự: <span class='font-mono-seq text-cyan-300 font-bold'>3'-TAC CAA GGT ACT-5'</span>. Phân tử mRNA được phiên mã từ đoạn mạch khuôn này có trình tự là:",
+                options: [
+                    "5'-ATG GTT CCA TGA-3'",
+                    "3'-AUG GUU CCA UGA-5'",
+                    "5'-UAC CAA GGU ACU-3'",
+                    "5'-AUG GUU CCA UGA-3'"
+                ],
+                correctIndex: 3, // D (4/5)
+                explanation: "Quá trình phiên mã tổng hợp mRNA theo chiều 5' → 3' dựa trên mạch khuôn 3' → 5' theo nguyên tắc bổ sung (A_gốc - U_mRNA, T_gốc - A_mRNA, G_gốc - C_mRNA, C_gốc - G_mRNA). Do đó: 3'-TAC CAA GGT ACT-5' → 5'-AUG GUU CCA UGA-3'."
+            },
+            {
+                id: 17,
+                topic: "Bài tập xác định mạch khuôn DNA",
+                question: "Một phân tử mRNA có trình tự: <span class='font-mono-seq text-emerald-300 font-bold'>5'-AUG GCU UAC UAG-3'</span>. Trình tự nucleotide trên mạch mã gốc của gene đã phiên mã ra mRNA này là:",
+                options: [
+                    "3'-TAC CGA ATG ATC-5'",
+                    "5'-TAC CGA ATG ATC-3'",
+                    "3'-ATG GCT TAC TAG-5'",
+                    "5'-UAC CGA AUG AUC-3'"
+                ],
+                correctIndex: 0, // A (5/5)
+                explanation: "Từ mRNA 5' → 3' suy ngược lại mạch khuôn DNA theo chiều 3' → 5' (U_mRNA ↔ A_gốc, A_mRNA ↔ T_gốc, G_mRNA ↔ C_gốc, C_mRNA ↔ G_gốc). Mạch gốc là: 3'-TAC CGA ATG ATC-5'."
+            },
+            {
+                id: 18,
+                topic: "Bài tập Đối mã (Anticodon)",
+                question: "Trên phân tử mRNA có một codon mã hóa amino acid là <span class='font-mono-seq text-emerald-300 font-bold'>5'-GGU-3'</span>. Bộ ba đối mã (anticodon) tương ứng trên phân tử tRNA vận chuyển amino acid này là:",
+                options: [
+                    "5'-CCA-3'",
+                    "3'-CCA-5'",
+                    "3'-GGT-5'",
+                    "5'-GGU-3'"
+                ],
+                correctIndex: 1, // B (5/5)
+                explanation: "Codon trên mRNA (5'-GGU-3') khớp bổ sung và ngược chiều với anticodon trên tRNA. Theo nguyên tắc bổ sung (G-C, U-A), anticodon tương ứng là 3'-CCA-5'."
+            },
+
+            // --- CHỦ ĐỀ 6: BÀI TẬP TÌM TRÌNH TỰ AMINO ACID ---
+            {
+                id: 19,
+                topic: "Bài tập Dịch mã (mRNA → Polypeptide)",
+                question: "Một đoạn phân tử mRNA có trình tự: <span class='font-mono-seq text-emerald-300 font-bold'>5'-AUG UUU GGC UAA-3'</span>. Chuỗi polypeptide (tính cả amino acid mở đầu) được dịch mã từ đoạn mRNA này gồm trình tự các amino acid là:",
+                codonTable: "Bảng mã di truyền (5'→3'): AUG: Met | UUU: Phe | GGC: Gly | UAA: Kết thúc",
+                options: [
+                    "Met - Gly - Phe - Kết thúc.",
+                    "Phe - Gly - Met.",
+                    "Met - Phe - Gly.",
+                    "Met - Phe - Gly - Stop."
+                ],
+                correctIndex: 2, // C (5/5)
+                explanation: "Đọc từng bộ ba trên mRNA theo chiều 5' → 3': 5'-AUG-3' (Met) → 5'-UUU-3' (Phe) → 5'-GGC-3' (Gly) → 5'-UAA-3' (mã kết thúc, không mã hóa amino acid). Vậy chuỗi polypeptide gồm: Met - Phe - Gly."
+            },
+            {
+                id: 20,
+                topic: "Bài tập Tổng hợp (DNA → mRNA → Polypeptide)",
+                question: "Một đoạn mạch khuôn của gene ở sinh vật nhân sơ có trình tự: <span class='font-mono-seq text-cyan-300 font-bold'>3'-TAC AAA CCG GAT ACT-5'</span>. Trình tự các amino acid trong chuỗi polypeptide hoàn chỉnh (đã cắt bỏ amino acid mở đầu) được tổng hợp từ đoạn gene trên là:",
+                codonTable: "Bảng mã di truyền (5'→3'): AUG: Met | UUU: Phe | GGC: Gly | CUA: Leu | UGA: Kết thúc",
+                options: [
+                    "Met - Phe - Gly - Leu.",
+                    "Leu - Gly - Phe.",
+                    "Phe - Gly - Leu - Met.",
+                    "Phe - Gly - Leu."
+                ],
+                correctIndex: 3, // D (5/5)
+                explanation: "Bước 1 (Phiên mã): Mạch khuôn 3'-TAC AAA CCG GAT ACT-5' → mRNA: 5'-AUG UUU GGC CUA UGA-3'. Bước 2 (Dịch mã): AUG (Met) - UUU (Phe) - GGC (Gly) - CUA (Leu) - UGA (Kết thúc). Bước 3: Cắt bỏ amino acid mở đầu (Met), chuỗi polypeptide hoàn chỉnh còn lại: Phe - Gly - Leu."
+            }
+        ];
+
+        /**
+         * ============================================================================
+         * 2. KHO LỜI CỔ VŨ (ĐÚNG) & ĐỘNG VIÊN (SAI) PHONG PHÚ, HÀI HƯỚC
+         * ============================================================================
+         */
+        const PRAISE_MESSAGES = [
+            "Đỉnh của chóp! Chuỗi xoắn DNA của bạn đang hoạt động cực kỳ mượt mà!",
+            "Xuất sắc! Enzyme DNA polymerase cũng phải ngả mũ thán phục tốc độ của bạn!",
+            "Chuẩn không cần chỉnh! Bạn giải mã chính xác đến từng nucleotide!",
+            "Quá dữ luôn! Điểm 10 Sinh học đang vẫy gọi bạn rồi đó!",
+            "Tuyệt vời ông mặt trời! Không một đột biến nào có thể làm khó được bạn!",
+            "Quá đỉnh! Bạn khớp mã còn chuẩn hơn cả bộ ba đối mã trên tRNA!",
+            "Chính xác tuyệt đối! Ribosome tư duy của bạn đang dịch mã siêu tốc độ!",
+            "Hay quá bạn ơi! Cứ đà này thì thủ khoa Sinh học nằm trong tầm tay!",
+            "Quá xịn xò! Bạn nắm chắc cơ chế phân tử như lòng bàn tay vậy!",
+            "Tuyệt cú mèo! Một pha xử lý chuẩn xác theo nguyên tắc bổ sung!",
+            "Bái phục! Bạn đọc chiều 3 phẩy đến 5 phẩy nhanh như chớp!",
+            "Hoàn hảo! Liên kết hydrogen trong kiến thức của bạn cực kỳ bền vững!",
+            "Quá xuất thần! Lại thêm một mật mã di truyền nữa được bạn chinh phục!",
+            "Đúng rồi! Thầy cô nhìn thấy câu trả lời này chắc chắn sẽ rất tự hào!"
+        ];
+
+        const ENCOURAGE_MESSAGES = [
+            "Suýt chút nữa thì khớp mã rồi! Đọc kỹ hướng dẫn bên dưới để ghi nhớ ngay nhé!",
+            "Không sao cả, chỉ là một đột biến điểm nhẹ thôi, sửa sai ngay ở câu tiếp theo nào!",
+            "Bình tĩnh nào, kiểm tra lại chiều 3 phẩy đến 5 phẩy một chút là ra ngay thôi!",
+            "Cố lên bạn ơi! Thất bại là mẹ thành công, xem giải thích để rút kinh nghiệm nhé!",
+            "Tiếc quá đi mất! Nhưng không sao, sai lúc luyện tập để đúng lúc đi thi!",
+            "Hơi lệch nhịp phiên mã một chút xíu thôi! Cùng xem lại đáp án chuẩn nhé!",
+            "Đừng nản chí nhé! Ngay cả DNA polymerase đôi khi cũng cần enzyme sửa sai mà!",
+            "Gần đúng rồi đó! Hãy chú ý kỹ các nguyên tắc bổ sung ở phần giải thích bên dưới nha!",
+            "Một chút nhầm lẫn nhỏ thôi! Hít thở sâu và chinh phục câu hỏi tiếp theo nào!",
+            "Không sao hết! Mỗi lần vấp ngã là một lần bộ nhớ của bạn được củng cố chắc hơn!",
+            "Chưa chính xác rồi, nhưng tinh thần chiến đấu của bạn rất tuyệt vời! Cố lên!",
+            "Xem kỹ phần hướng dẫn giải ngay bên dưới để không bao giờ bị bẫy dạng này nữa nhé!"
+        ];
+
+        /**
+         * ============================================================================
+         * 3. QUẢN LÝ TRẠNG THÁI TRÒ CHƠI & BỘ ĐẾM LƯỢT LÀM BÀI (LOCALSTORAGE)
+         * ============================================================================
+         */
+        const STORAGE_KEY_ATTEMPTS = "sinh12_dna_master_attempts_v1";
+
+        let state = {
+            studentName: "",
+            studentClass: "",
+            attemptNumber: 1,
+            questions: [],
+            currentIndex: 0,
+            correctCount: 0,
+            userAnswers: [], // Lưu index đáp án học sinh đã chọn cho từng câu
+            answeredCurrent: false,
+            timerSeconds: 0,
+            timerInterval: null,
+            audioEnabled: true,
+            usedPraiseIndices: [],
+            usedEncourageIndices: []
+        };
+
+        // Khởi tạo dữ liệu lịch sử lượt chơi khi tải trang
+        document.addEventListener("DOMContentLoaded", () => {
+            renderAttemptHistory();
+            // Kích hoạt tải danh sách giọng nói sớm cho Web Speech API
+            if ("speechSynthesis" in window) {
+                window.speechSynthesis.getVoices();
+            }
+        });
+
+        // Đọc danh sách lượt làm bài từ localStorage
+        function getAttemptRecords() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY_ATTEMPTS);
+                return raw ? JSON.parse(raw) : {};
+            } catch (e) {
+                console.warn("Không thể đọc localStorage:", e);
+                return {};
+            }
+        }
+
+        // Lưu danh sách lượt làm bài vào localStorage
+        function saveAttemptRecords(records) {
+            try {
+                localStorage.setItem(STORAGE_KEY_ATTEMPTS, JSON.stringify(records));
+            } catch (e) {
+                console.warn("Không thể ghi localStorage:", e);
+            }
+        }
+
+        // Tăng và trả về số lượt làm bài của thí sinh (chuẩn hóa key theo tên + lớp)
+        function incrementStudentAttempt(name, className) {
+            const records = getAttemptRecords();
+            const normalizedKey = (name.trim().toLowerCase() + (className ? `_${className.trim().toLowerCase()}` : ""));
+            if (!records[normalizedKey]) {
+                records[normalizedKey] = {
+                    displayName: name.trim(),
+                    className: className ? className.trim() : "",
+                    count: 0,
+                    lastPlayed: ""
+                };
+            }
+            records[normalizedKey].displayName = name.trim();
+            if (className) records[normalizedKey].className = className.trim();
+            records[normalizedKey].count += 1;
+            records[normalizedKey].lastPlayed = new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+
+            saveAttemptRecords(records);
+            renderAttemptHistory();
+            return records[normalizedKey].count;
+        }
+
+        // Hiển thị danh sách thống kê số lượt tham gia của các thí sinh
+        function renderAttemptHistory() {
+            const container = document.getElementById("attempt-history-list");
+            const records = getAttemptRecords();
+            const keys = Object.keys(records);
+
+            if (keys.length === 0) {
+                container.innerHTML = `<p class="text-slate-400 italic text-center py-2">Chưa có lượt làm bài nào được ghi nhận trên thiết bị này.</p>`;
+                return;
+            }
+
+            // Sắp xếp theo lượt làm bài giảm dần
+            keys.sort((a, b) => records[b].count - records[a].count);
+
+            container.innerHTML = keys.map(k => {
+                const item = records[k];
+                const classTag = item.className ? `<span class="text-cyan-400 font-normal">(${escapeHtml(item.className)})</span>` : "";
+                return `
+                    <div class="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-800/75 border border-slate-700/70">
+                        <div class="truncate pr-2">
+                            <span class="font-semibold text-slate-100">${escapeHtml(item.displayName)}</span> ${classTag}
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <span class="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 font-bold text-xs">
+                                ${item.count} lượt
+                            </span>
+                        </div>
+                    </div>
+                `;
+            }).join("");
+        }
+
+        function confirmResetStats() {
+            document.getElementById("reset-confirm-box").classList.remove("hidden");
+        }
+        function cancelResetStats() {
+            document.getElementById("reset-confirm-box").classList.add("hidden");
+        }
+        function executeResetStats() {
+            localStorage.removeItem(STORAGE_KEY_ATTEMPTS);
+            cancelResetStats();
+            renderAttemptHistory();
+        }
+
+        /**
+         * ============================================================================
+         * 4. HỆ THỐNG ÂM THANH TỔNG HỢP (WEB AUDIO API) & GIỌNG ĐỌC TIẾNG VIỆT
+         * ============================================================================
+         */
+        let audioCtx = null;
+
+        function initAudioContext() {
+            if (!audioCtx) {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                if (AudioContextClass) {
+                    audioCtx = new AudioContextClass();
+                }
+            }
+            if (audioCtx && audioCtx.state === "suspended") {
+                audioCtx.resume();
+            }
+        }
+
+        // Hiệu ứng âm thanh khi trả lời ĐÚNG (Hợp âm arpeggio tươi sáng)
+        function playCorrectSound() {
+            if (!state.audioEnabled) return;
+            initAudioContext();
+            if (!audioCtx) return;
+
+            const notes = [523.25, 659.25, 783.99, 1046.50]; // C5 - E5 - G5 - C6
+            notes.forEach((freq, idx) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = "triangle";
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime + idx * 0.08);
+
+                gain.gain.setValueAtTime(0.001, audioCtx.currentTime + idx * 0.08);
+                gain.gain.exponentialRampToValueAtTime(0.22, audioCtx.currentTime + idx * 0.08 + 0.03);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + idx * 0.08 + 0.35);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(audioCtx.currentTime + idx * 0.08);
+                osc.stop(audioCtx.currentTime + idx * 0.08 + 0.38);
+            });
+        }
+
+        // Hiệu ứng âm thanh khi trả lời SAI (Tiếng boong trầm ấm nhẹ nhàng)
+        function playWrongSound() {
+            if (!state.audioEnabled) return;
+            initAudioContext();
+            if (!audioCtx) return;
+
+            const notes = [330, 261.63]; // E4 -> C4
+            notes.forEach((freq, idx) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = "sine";
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime + idx * 0.14);
+
+                gain.gain.setValueAtTime(0.001, audioCtx.currentTime + idx * 0.14);
+                gain.gain.exponentialRampToValueAtTime(0.2, audioCtx.currentTime + idx * 0.14 + 0.03);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + idx * 0.14 + 0.32);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(audioCtx.currentTime + idx * 0.14);
+                osc.stop(audioCtx.currentTime + idx * 0.14 + 0.35);
+            });
+        }
+
+        // Hiệu ứng âm thanh Fanfare chúc mừng hoàn thành bài thi
+        function playVictorySound() {
+            if (!state.audioEnabled) return;
+            initAudioContext();
+            if (!audioCtx) return;
+
+            const fanfare = [523.25, 659.25, 783.99, 1046.50, 783.99, 1046.50];
+            const times = [0, 0.11, 0.22, 0.34, 0.50, 0.64];
+            fanfare.forEach((freq, i) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = "triangle";
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime + times[i]);
+
+                gain.gain.setValueAtTime(0.001, audioCtx.currentTime + times[i]);
+                gain.gain.exponentialRampToValueAtTime(0.25, audioCtx.currentTime + times[i] + 0.04);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + times[i] + 0.45);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(audioCtx.currentTime + times[i]);
+                osc.stop(audioCtx.currentTime + times[i] + 0.48);
+            });
+        }
+
+        // Đọc giọng nói tiếng Việt truyền cảm bằng Web Speech API
+        function speakVietnamese(text) {
+            if (!state.audioEnabled || !("speechSynthesis" in window)) return;
+            try {
+                window.speechSynthesis.cancel(); // Dừng câu đọc trước đó nếu còn
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = "vi-VN";
+                utterance.rate = 1.03; // Tốc độ tự nhiên, truyền cảm
+                utterance.pitch = 1.08;
+
+                // Tìm giọng đọc tiếng Việt tốt nhất trên trình duyệt
+                const voices = window.speechSynthesis.getVoices();
+                const viVoice = voices.find(v => v.lang.toLowerCase().includes("vi-vn") || v.lang.toLowerCase().includes("vi"));
+                if (viVoice) {
+                    utterance.voice = viVoice;
+                }
+
+                window.speechSynthesis.speak(utterance);
+            } catch (err) {
+                console.warn("Lỗi phát giọng nói:", err);
+            }
+        }
+
+        // Bật / Tắt âm thanh và giọng nói
+        function toggleAudio() {
+            state.audioEnabled = !state.audioEnabled;
+            const iconEl = document.getElementById("audio-icon");
+            const labelEl = document.getElementById("audio-label");
+
+            if (state.audioEnabled) {
+                iconEl.textContent = "🔊";
+                labelEl.textContent = "Giọng đọc: Bật";
+                initAudioContext();
+                speakVietnamese("Đã bật âm thanh và giọng đọc cổ vũ!");
+            } else {
+                iconEl.textContent = "🔇";
+                labelEl.textContent = "Giọng đọc: Tắt";
+                if ("speechSynthesis" in window) {
+                    window.speechSynthesis.cancel();
+                }
+            }
+        }
+
+        // Lấy câu cổ vũ / động viên ngẫu nhiên không trùng lặp liên tiếp
+        function getUniqueMessage(pool, usedList) {
+            if (usedList.length >= pool.length) {
+                usedList.length = 0; // Reset khi đã dùng hết
+            }
+            let idx;
+            do {
+                idx = Math.floor(Math.random() * pool.length);
+            } while (usedList.includes(idx));
+            usedList.push(idx);
+            return pool[idx];
+        }
+
+        /**
+         * ============================================================================
+         * 5. LUỒNG ĐIỀU KHIỂN TRÒ CHƠI (BẮT ĐẦU -> TRẢ LỜI -> KẾT THÚC)
+         * ============================================================================
+         */
+        function handleStartGame(event) {
+            event.preventDefault();
+            const nameInput = document.getElementById("student-name").value.trim();
+            const classInput = document.getElementById("student-class").value.trim();
+            const errorBox = document.getElementById("form-error-msg");
+
+            if (!nameInput) {
+                errorBox.textContent = "Vui lòng nhập Họ và tên thí sinh trước khi bắt đầu!";
+                errorBox.classList.remove("hidden");
+                return;
+            }
+            errorBox.classList.add("hidden");
+
+            state.studentName = nameInput;
+            state.studentClass = classInput;
+            initAudioContext();
+            startNewSession();
+        }
+
+        function startNewSession() {
+            // Tăng bộ đếm lượt làm bài cho thí sinh này
+            state.attemptNumber = incrementStudentAttempt(state.studentName, state.studentClass);
+
+            // Chuẩn bị bộ 20 câu hỏi (giữ nguyên A, B, C, D tỉ lệ chuẩn 5-5-5-5; có thể xáo thứ tự câu hỏi nếu chọn)
+            const shouldShuffle = document.getElementById("shuffle-questions").checked;
+            state.questions = [...QUESTIONS_BANK];
+            if (shouldShuffle) {
+                for (let i = state.questions.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [state.questions[i], state.questions[j]] = [state.questions[j], state.questions[i]];
+                }
+            }
+
+            state.currentIndex = 0;
+            state.correctCount = 0;
+            state.userAnswers = [];
+            state.answeredCurrent = false;
+            state.timerSeconds = 0;
+
+            // Cập nhật Badge trên thanh điều hướng
+            const headerBadge = document.getElementById("header-player-badge");
+            const headerInfo = document.getElementById("header-player-info");
+            const classDisplay = state.studentClass ? ` (${state.studentClass})` : "";
+            headerInfo.textContent = `Thí sinh: ${state.studentName}${classDisplay} • Lượt ${state.attemptNumber}`;
+            headerBadge.classList.remove("hidden");
+            headerBadge.classList.add("flex");
+
+            // Chuyển sang màn hình làm bài
+            switchScreen("screen-quiz");
+            startTimer();
+            renderCurrentQuestion();
+
+            // Lời chào mở đầu bằng giọng nói
+            speakVietnamese(`Chào mừng ${state.studentName} đến với lượt làm bài thứ ${state.attemptNumber}. Chúc bạn giải mã thành công!`);
+        }
+
+        function startTimer() {
+            if (state.timerInterval) clearInterval(state.timerInterval);
+            updateTimerDisplay();
+            state.timerInterval = setInterval(() => {
+                state.timerSeconds++;
+                updateTimerDisplay();
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const mins = String(Math.floor(state.timerSeconds / 60)).padStart(2, "0");
+            const secs = String(state.timerSeconds % 60).padStart(2, "0");
+            document.getElementById("timer-display").textContent = `${mins}:${secs}`;
+        }
+
+        function renderCurrentQuestion() {
+            const q = state.questions[state.currentIndex];
+            state.answeredCurrent = false;
+
+            // Cập nhật chỉ số tiến độ
+            document.getElementById("question-counter-badge").textContent = `Câu ${state.currentIndex + 1} / ${state.questions.length}`;
+            document.getElementById("question-topic-badge").textContent = q.topic;
+            document.getElementById("correct-count-display").textContent = state.correctCount;
+            const progressPercent = ((state.currentIndex + 1) / state.questions.length) * 100;
+            document.getElementById("progress-bar").style.width = `${progressPercent}%`;
+
+            // Hiển thị nội dung câu hỏi
+            const qCard = document.getElementById("question-card");
+            qCard.classList.remove("shake-anim", "pop-anim");
+            document.getElementById("question-text").innerHTML = `<span class="text-cyan-400 font-extrabold mr-1.5">Câu ${state.currentIndex + 1}:</span> ${q.question}`;
+
+            // Hiển thị bảng mã di truyền bổ trợ nếu có
+            const codonBox = document.getElementById("codon-table-box");
+            if (q.codonTable) {
+                codonBox.innerHTML = `<span class="font-bold text-amber-300">🧬 Dữ liệu tra cứu:</span> <span class="font-mono-seq">${q.codonTable}</span>`;
+                codonBox.classList.remove("hidden");
+            } else {
+                codonBox.classList.add("hidden");
+            }
+
+            // Render 4 đáp án A, B, C, D
+            const letters = ["A", "B", "C", "D"];
+            const optionsContainer = document.getElementById("options-container");
+            optionsContainer.innerHTML = q.options.map((optText, idx) => `
+                <button type="button" id="opt-btn-${idx}" onclick="selectAnswer(${idx})"
+                    class="option-btn w-full text-left p-4 rounded-2xl flex items-start gap-3.5 cursor-pointer group">
+                    <span class="w-8 h-8 rounded-xl bg-slate-800 group-hover:bg-cyan-500 group-hover:text-slate-950 border border-cyan-400/40 flex items-center justify-center font-extrabold text-cyan-300 shrink-0 transition">
+                        ${letters[idx]}
+                    </span>
+                    <span class="text-sm sm:text-base text-slate-100 leading-snug pt-1 font-medium">
+                        ${optText}
+                    </span>
+                </button>
+            `).join("");
+
+            // Ẩn hộp giải thích & nút tiếp theo
+            document.getElementById("feedback-box").classList.add("hidden");
+            const nextBtn = document.getElementById("next-btn");
+            nextBtn.classList.add("hidden");
+            nextBtn.classList.remove("inline-flex");
+        }
+
+        function selectAnswer(selectedIndex) {
+            if (state.answeredCurrent) return;
+            state.answeredCurrent = true;
+
+            const q = state.questions[state.currentIndex];
+            const isCorrect = selectedIndex === q.correctIndex;
+            state.userAnswers[state.currentIndex] = selectedIndex;
+
+            const qCard = document.getElementById("question-card");
+            const feedbackBox = document.getElementById("feedback-box");
+            const feedbackEmoji = document.getElementById("feedback-emoji");
+            const feedbackTitle = document.getElementById("feedback-title");
+            const feedbackVoiceText = document.getElementById("feedback-voice-text");
+            const feedbackExplanation = document.getElementById("feedback-explanation");
+
+            // Khóa tất cả nút và tô màu đúng / sai
+            for (let i = 0; i < 4; i++) {
+                const btn = document.getElementById(`opt-btn-${i}`);
+                btn.disabled = true;
+                if (i === q.correctIndex) {
+                    btn.classList.add("option-correct");
+                } else if (i === selectedIndex && !isCorrect) {
+                    btn.classList.add("option-wrong");
+                } else {
+                    btn.classList.add("option-dimmed");
+                }
+            }
+
+            if (isCorrect) {
+                state.correctCount++;
+                document.getElementById("correct-count-display").textContent = state.correctCount;
+
+                // Hiệu ứng thị giác & âm thanh chúc mừng
+                qCard.classList.add("pop-anim");
+                playCorrectSound();
+                triggerMiniConfetti();
+
+                const cheerMsg = getUniqueMessage(PRAISE_MESSAGES, state.usedPraiseIndices);
+                feedbackBox.className = "rounded-2xl p-5 border border-emerald-400/50 bg-emerald-950/60 transition-all duration-300 mb-5";
+                feedbackEmoji.textContent = "🎉";
+                feedbackTitle.textContent = "CHÍNH XÁC! TUYỆT VỜI!";
+                feedbackTitle.className = "text-base sm:text-lg font-extrabold text-emerald-300 mb-1";
+                feedbackVoiceText.textContent = `"${cheerMsg}"`;
+                feedbackVoiceText.className = "text-sm sm:text-base font-medium italic text-emerald-100 mb-3";
+
+                speakVietnamese(cheerMsg);
+            } else {
+                // Hiệu ứng rung nhẹ & âm thanh động viên
+                qCard.classList.add("shake-anim");
+                playWrongSound();
+
+                const encourageMsg = getUniqueMessage(ENCOURAGE_MESSAGES, state.usedEncourageIndices);
+                feedbackBox.className = "rounded-2xl p-5 border border-amber-400/50 bg-amber-950/55 transition-all duration-300 mb-5";
+                feedbackEmoji.textContent = "💡";
+                feedbackTitle.textContent = "CHƯA CHÍNH XÁC RỒI — CỐ LÊN NHÉ!";
+                feedbackTitle.className = "text-base sm:text-lg font-extrabold text-amber-300 mb-1";
+                feedbackVoiceText.textContent = `"${encourageMsg}"`;
+                feedbackVoiceText.className = "text-sm sm:text-base font-medium italic text-amber-100 mb-3";
+
+                speakVietnamese(encourageMsg);
+            }
+
+            // Hiển thị lời giải chi tiết
+            feedbackExplanation.innerHTML = q.explanation;
+            feedbackBox.classList.remove("hidden");
+
+            // Hiển thị nút sang câu tiếp theo hoặc hoàn thành
+            const nextBtn = document.getElementById("next-btn");
+            const nextBtnText = document.getElementById("next-btn-text");
+            nextBtnText.textContent = (state.currentIndex === state.questions.length - 1)
+                ? "Hoàn thành thử thách"
+                : "Câu tiếp theo";
+            nextBtn.classList.remove("hidden");
+            nextBtn.classList.add("inline-flex");
+        }
+
+        function nextQuestion() {
+            if ("speechSynthesis" in window) {
+                window.speechSynthesis.cancel();
+            }
+            if (state.currentIndex < state.questions.length - 1) {
+                state.currentIndex++;
+                renderCurrentQuestion();
+            } else {
+                finishGame();
+            }
+        }
+
+        function finishGame() {
+            if (state.timerInterval) clearInterval(state.timerInterval);
+
+            switchScreen("screen-result");
+            playVictorySound();
+            triggerBigConfetti();
+
+            const classStr = state.studentClass ? ` (Lớp ${state.studentClass})` : "";
+            document.getElementById("result-student-banner").textContent =
+                `Thí sinh: ${state.studentName}${classStr} — Lượt làm bài thứ: ${state.attemptNumber}`;
+
+            document.getElementById("result-correct-ratio").textContent = `${state.correctCount}/${state.questions.length}`;
+            document.getElementById("result-time-taken").textContent = document.getElementById("timer-display").textContent;
+            document.getElementById("result-attempt-count").textContent = `Lần ${state.attemptNumber}`;
+
+            const congratsSpeech = `Chúc mừng ${state.studentName} đã xuất sắc hoàn thành lượt làm bài thứ ${state.attemptNumber} với ${state.correctCount} trên 20 câu trả lời chính xác!`;
+            speakVietnamese(congratsSpeech);
+
+            renderReviewList();
+        }
+
+        // Chơi lại lượt mới cho cùng thí sinh
+        function replaySameStudent() {
+            document.getElementById("review-container").classList.add("hidden");
+            document.getElementById("review-toggle-text").textContent = "Xem lại 20 câu & lời giải";
+            startNewSession();
+        }
+
+        // Quay về màn hình chính để đổi thí sinh khác
+        function switchStudent() {
+            if (state.timerInterval) clearInterval(state.timerInterval);
+            if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+
+            document.getElementById("header-player-badge").classList.add("hidden");
+            document.getElementById("header-player-badge").classList.remove("flex");
+            document.getElementById("review-container").classList.add("hidden");
+            document.getElementById("student-name").value = "";
+            document.getElementById("student-class").value = "";
+            renderAttemptHistory();
+            switchScreen("screen-start");
+        }
+
+        // Hiển thị / Ẩn danh sách ôn tập 20 câu hỏi
+        function toggleReviewSection() {
+            const rev = document.getElementById("review-container");
+            const txt = document.getElementById("review-toggle-text");
+            if (rev.classList.contains("hidden")) {
+                rev.classList.remove("hidden");
+                txt.textContent = "Ẩn danh sách ôn tập";
+            } else {
+                rev.classList.add("hidden");
+                txt.textContent = "Xem lại 20 câu & lời giải";
+            }
+        }
+
+        function renderReviewList() {
+            const letters = ["A", "B", "C", "D"];
+            const reviewList = document.getElementById("review-list");
+
+            reviewList.innerHTML = state.questions.map((q, idx) => {
+                const userAns = state.userAnswers[idx];
+                const isRight = userAns === q.correctIndex;
+                const statusBadge = isRight
+                    ? `<span class="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold">✅ Đúng</span>`
+                    : `<span class="px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 text-xs font-bold">❌ Chưa đúng (Bạn chọn ${letters[userAns]})</span>`;
+
+                return `
+                    <div class="p-4 rounded-2xl bg-slate-900/80 border ${isRight ? 'border-emerald-500/30' : 'border-rose-500/30'}">
+                        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                            <span class="font-bold text-cyan-300 text-sm">Câu ${idx + 1} • ${q.topic}</span>
+                            ${statusBadge}
+                        </div>
+                        <p class="text-sm text-white font-medium mb-2">${q.question}</p>
+                        <p class="text-xs sm:text-sm text-emerald-300 font-semibold mb-1.5">
+                            Đáp án đúng: ${letters[q.correctIndex]}. ${q.options[q.correctIndex]}
+                        </p>
+                        <p class="text-xs text-slate-300 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
+                            <strong class="text-cyan-400">Giải thích:</strong> ${q.explanation}
+                        </p>
+                    </div>
+                `;
+            }).join("");
+        }
+
+        function switchScreen(targetId) {
+            ["screen-start", "screen-quiz", "screen-result"].forEach(id => {
+                document.getElementById(id).classList.add("hidden");
+            });
+            document.getElementById(targetId).classList.remove("hidden");
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+
+        /**
+         * ============================================================================
+         * 6. HIỆU ỨNG PHÁO GIẤY (CONFETTI) & TIỆN ÍCH BẢO MẬT HTML
+         * ============================================================================
+         */
+        function triggerMiniConfetti() {
+            if (typeof confetti === "function") {
+                confetti({
+                    particleCount: 45,
+                    spread: 65,
+                    origin: { y: 0.72 },
+                    colors: ["#34d399", "#38bdf8", "#fbbf24", "#a78bfa"]
+                });
+            }
+        }
+
+        function triggerBigConfetti() {
+            if (typeof confetti !== "function") return;
+            const duration = 2200;
+            const end = Date.now() + duration;
+
+            (function frame() {
+                confetti({
+                    particleCount: 5,
+                    angle: 60,
+                    spread: 55,
+                    origin: { x: 0 },
+                    colors: ["#34d399", "#38bdf8", "#fbbf24"]
+                });
+                confetti({
+                    particleCount: 5,
+                    angle: 120,
+                    spread: 55,
+                    origin: { x: 1 },
+                    colors: ["#34d399", "#38bdf8", "#f472b6"]
+                });
+                if (Date.now() < end) {
+                    requestAnimationFrame(frame);
+                }
+            }());
+        }
+
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
